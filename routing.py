@@ -1,56 +1,47 @@
 import fileinput
-from typing import NewType
 
 
-# get valuses from csv file
-links = {}
 
 
-def get_shortest_distance(current,visited=[],score=0):
-    vertecies = {}
-    for i in range(len(links["ends"])):
-        if(links["ends"][i] not in visited):
-            if (int(links[current][i]) != 9999):
-                vertecies.update({ links["ends"][i] : int(links[current][i])+score })
-            else:
-                vertecies.update({ links["ends"][i] : int(links[current][i]) })
-    
-    return vertecies
 
-def compare_distance(old,new):
-    for i in new:
-        if(i in old and new[i] < old[i]):
-            old[i] = new[i]
-
-def get_min(verticies, visited):
-    MIN = 9999
+def get_min(verticies, unvisited):
+    MIN = 9999 # set default MIN to infinity
     Letter = None
     for i in verticies:
-        if i not in visited:
-            if (verticies[i] < MIN):
-                MIN = verticies[i]
-                Letter = i
+        if i in unvisited:
+            if(verticies[i]["val"] < MIN):
+                MIN = verticies[i]["val"]
+                Letter = i     
     return Letter,MIN
 
-def shortest_path(a):
-    # initialize visited nodes, current vertex, and current score
+def dijkstras_algorithm(links,start_node:str)->dict:
     unvisited = links["ends"]
 
-    shortest_distance = get_shortest_distance(a)
-    visited = [a]
-    unvisited.remove(a)
-    current,score = get_min(shortest_distance,visited)
+    # let distance of all other vertices from start = infinity
+    distances = {i:{"val":9999,"prev":"","tree":""} for i in unvisited}
+    distances[start_node]["val"] = 0
 
     while(unvisited != []):
-        unvisited.remove(current)
-        visited.append(current)
-        new_distance = get_shortest_distance(current,visited,score)
-        compare_distance(shortest_distance, new_distance)
-        current,score = get_min(shortest_distance,visited)
+        current_vertex,weight = get_min(distances,unvisited)
+        for neighbor in links[current_vertex]:
+            if neighbor in unvisited:
+                new_dist = links[current_vertex][neighbor]["val"] + weight
+                if new_dist < distances[neighbor]["val"]:
+                    distances[neighbor]["val"] = new_dist
+                    distances[neighbor]["prev"] = current_vertex
+        unvisited.remove(current_vertex)
 
-    return shortest_distance
-        
-        
+    return distances
+
+def get_trees(distances:dict)->None:
+    for i in distances:
+        tree=current=i
+        while(distances[current]["prev"] != ''):
+            current = distances[current]["prev"]
+            tree+=current            
+        distances[i]["tree"] = tree[::-1]
+    
+
 
 if __name__ == "__main__":
     
@@ -58,16 +49,25 @@ if __name__ == "__main__":
     start_node = input("Please, provide the source node: ")
 
     # Get file input
+    links = {}
     for line in fileinput.input():
         node = line.rstrip("\n").split(",")
         if(node[0]==''):
             links.update({"ends":node[1:]})
         else:
-            links.update({node[0]:node[1:]})
+            links.update({node[0]:{links["ends"][i]:{"val":int(node[i+1]),"prev":""} for i in range(len(links["ends"]))}})
 
     #  Dijkstra’s algorithm
-    print(shortest_path(start_node))
+    shortest_paths = dijkstras_algorithm(links,start_node)
+    get_trees(shortest_paths) # Get the path-trees
 
+    trees = ', '.join([shortest_paths[i]["tree"] for i in shortest_paths])
+    print(f"Shortest path tree for node {start_node}:\n{trees}")
+
+    costs = ', '.join(["{}:{}".format(i,shortest_paths[i]["val"]) for i in shortest_paths])
+    print(f"Costs of the least-cost paths for node {start_node}:\n{costs}")
+    print()
+    
     # Bellman-Ford equation
 
     
