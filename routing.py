@@ -37,7 +37,7 @@ def get_trees(distances:dict)->None:
             tree+=current            
         distances[i]["tree"] = tree[::-1]
     
-def BellmanFord(V, graph, src, nodes): 
+def bellman_ford(V, graph, src, nodes): 
     dist = {}
     for n in nodes:
         dist[n] = float("Inf")
@@ -90,6 +90,6 @@ if __name__ == "__main__":
 
     # Bellman-Ford equation
     for n in nodes:
-        BellmanFord(len(nodes), graph, n, nodes)
+        bellman_ford(len(nodes), graph, n, nodes)
     
     
