@@ -1,6 +1,5 @@
 import fileinput
 
-
 def get_min(verticies, unvisited):
     MIN = 9999 # set default MIN to infinity
     Letter = None
@@ -13,7 +12,7 @@ def get_min(verticies, unvisited):
 
 def dijkstras_algorithm(links,start_node:str)->dict:
     unvisited = links["ends"]
-
+    
     # let distance of all other vertices from start = infinity
     distances = {i:{"val":9999,"prev":"","tree":""} for i in unvisited}
     distances[start_node]["val"] = 0
@@ -38,7 +37,26 @@ def get_trees(distances:dict)->None:
             tree+=current            
         distances[i]["tree"] = tree[::-1]
     
-
+def bellman_ford(V, graph, src, nodes): 
+    dist = {}
+    for n in nodes:
+        dist[n] = float("Inf")
+    
+    dist[src] = 0
+    
+    
+    for _ in range(V - 1): 
+        for u, v, w in graph: 
+            if dist[u] != float("Inf") and dist[u] + w < dist[v]: 
+                dist[v] = dist[u] + w 
+    
+    for u, v, w in graph: 
+        if dist[u] != float("Inf") and dist[u] + w < dist[v]: 
+            print("Graph contains negative weight cycle") 
+            return
+                    
+    dists = ' '.join(str(dist[n]) for n in nodes)
+    print("Distance vector for node " + src + ": " + dists)
 
 if __name__ == "__main__":
     
@@ -51,20 +69,27 @@ if __name__ == "__main__":
         node = line.rstrip("\n").split(",")
         if(node[0]==''):
             links.update({"ends":node[1:]})
+            nodes = node[1:]
         else:
             links.update({node[0]:{links["ends"][i]:{"val":int(node[i+1]),"prev":""} for i in range(len(links["ends"]))}})
-
     #  Dijkstra’s algorithm
+    tmp = links
+    graph = []
+    
+    
+    for node in list(tmp.keys())[1:]:
+        for elem in tmp[node].keys():
+            if tmp[node][elem]['val'] != 0:
+                graph.append([node, elem, tmp[node][elem]['val']])
     shortest_paths = dijkstras_algorithm(links,start_node)
     get_trees(shortest_paths) # Get the path-trees
-
     trees = ', '.join([shortest_paths[i]["tree"] for i in shortest_paths])
     print(f"Shortest path tree for node {start_node}:\n{trees}")
-
     costs = ', '.join(["{}:{}".format(i,shortest_paths[i]["val"]) for i in shortest_paths])
     print(f"Costs of the least-cost paths for node {start_node}:\n{costs}")
-    print()
-    
-    # Bellman-Ford equation
 
+    # Bellman-Ford equation
+    for n in nodes:
+        bellman_ford(len(nodes), graph, n, nodes)
+    
     
