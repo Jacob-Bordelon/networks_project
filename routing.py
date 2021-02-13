@@ -1,9 +1,6 @@
 import fileinput
 
 
-
-
-
 def get_min(verticies, unvisited):
     MIN = 9999 # set default MIN to infinity
     Letter = None
