@@ -1,95 +1,153 @@
 import fileinput
+from typing import Type
 
-def get_min(verticies, unvisited):
-    MIN = 9999 # set default MIN to infinity
-    Letter = None
-    for i in verticies:
-        if i in unvisited:
-            if(verticies[i]["val"] < MIN):
-                MIN = verticies[i]["val"]
-                Letter = i     
-    return Letter,MIN
 
-def dijkstras_algorithm(links,start_node:str)->dict:
-    unvisited = links["ends"]
-    
-    # let distance of all other vertices from start = infinity
-    distances = {i:{"val":9999,"prev":"","tree":""} for i in unvisited}
-    distances[start_node]["val"] = 0
+def get_file_data(input):
+    links = {}
+    for line in input:
+        line = line.rstrip("\n").split(",")
+        if(line[0]==''):
+            nodes = line[1:]
+        else:
+            temp = {nodes[i]:int(line[1:][i]) for i in range(len(nodes))}
+            links.update({line[0]:temp})
+    return nodes,links
 
-    while(unvisited != []):
-        current_vertex,weight = get_min(distances,unvisited)
-        for neighbor in links[current_vertex]:
-            if neighbor in unvisited:
-                new_dist = links[current_vertex][neighbor]["val"] + weight
-                if new_dist < distances[neighbor]["val"]:
-                    distances[neighbor]["val"] = new_dist
-                    distances[neighbor]["prev"] = current_vertex
-        unvisited.remove(current_vertex)
 
-    return distances
 
-def get_trees(distances:dict)->None:
-    for i in distances:
-        tree=current=i
-        while(distances[current]["prev"] != ''):
-            current = distances[current]["prev"]
-            tree+=current            
-        distances[i]["tree"] = tree[::-1]
-    
-def bellman_ford(V, graph, src, nodes): 
-    dist = {}
-    for n in nodes:
-        dist[n] = float("Inf")
-    
-    dist[src] = 0
-    
-    
-    for _ in range(V - 1): 
-        for u, v, w in graph: 
-            if dist[u] != float("Inf") and dist[u] + w < dist[v]: 
-                dist[v] = dist[u] + w 
-    
-    for u, v, w in graph: 
-        if dist[u] != float("Inf") and dist[u] + w < dist[v]: 
-            print("Graph contains negative weight cycle") 
-            return
-                    
-    dists = ' '.join(str(dist[n]) for n in nodes)
-    print("Distance vector for node " + src + ": " + dists)
+
+class Distace_Vector(object):
+    class Node:
+        def __init__(self,name,vertices) -> None:
+            self.name = name
+            self.verts = vertices
+
+        def check(self,Dv,c):
+            for i in self.verts:
+                if( Dv[i]+c < self.verts[i]):
+                    self.verts[i]=Dv[i]+c
+
+        def __getitem__(self,other):
+            return self.verts[other]
+
+        def __iter__(self):
+            return self.verts.__iter__()
+
+        def __setitem__(self,key,value):
+            self.verts[key] = value
+
+        def __add__(self,value):
+            return {i:self.verts[i]+value for i in self.verts}
+
+        def __repr__(self) -> str:
+            return repr(self.verts)
+
+    def __init__(self,nodes,links) -> None:
+        self.nodes = nodes
+        self.graph = {i:self.Node(i,links[i]) for i in nodes}
+        
+
+    def bellman_ford(self):
+        for _ in range(len(self.nodes)-1):
+            for u in self.nodes:
+                for v in self.nodes:
+                    self.graph[u].check(self.graph[v],self.cost(u,v))
+
+    def cost(self,u,v):
+        return self.graph[u][v]
+
+    def __getitem__(self,other):
+        return self.graph[other]
+
+    def __setitem__(self,key,value):
+        self.graph[key] = value
+
+    def __str__(self) -> str:
+        table=""
+        for i in self.graph:
+            values = ' '.join([str(self.graph[i][a]) for a in self.graph[i]])
+            table+=f"Distance vector for node {i}: {values}\n"
+        return table
+
+
+class Dijkstras:
+
+    class Node:
+        def __init__(self,val) -> None:
+            self.val = val
+            self.prev = ""
+            self.tree = ""
+        
+        def __repr__(self) -> str:
+            return repr({'val':self.val,'prev':''})
+
+    def __init__(self,nodes,links,start_node) -> None:
+        self.unvisited = nodes
+        self.start = start_node
+        self.links = links
+        self.distances = {i:self.Node(9999) for i in nodes}
+        self.distances[self.start].val = 0
+        self.algorithm()
+        self.tree = ""
+        self.costs = ', '.join(["{}:{}".format(i,self.distances[i].val) for i in self.distances])
+
+
+    @property
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self,_):
+        for i in self.distances:
+            tree=current=i
+            while(self.distances[current].prev != ''):
+                current = self.distances[current].prev
+                tree+=current            
+            self.distances[i].tree = tree[::-1]
+        self._tree = ', '.join([self.distances[i].tree for i in self.distances])
+
+    def min(self):
+        MIN=9999
+        Letter = None 
+        for i in self.distances:
+            if( (i in self.unvisited) and (self.distances[i].val < MIN)):
+                MIN = self.distances[i].val
+                Letter = i
+        return Letter,MIN
+
+    def algorithm(self):
+        while(self.unvisited != []):
+            current, weight = self.min()
+            for neighbor in self.links[current]:
+                if neighbor in self.unvisited:
+                    new_dist =self.links[current][neighbor]+weight
+                    if(new_dist < self.distances[neighbor].val):
+                        self.distances[neighbor].val = new_dist
+                        self.distances[neighbor].prev = current
+            self.unvisited.remove(current)
+        
+    def __str__(self) -> str:
+        t = f"Shortest path tree for node {self.start}:\n{self.tree}\n"
+        t+= f"Costs of the least-cost paths for node {self.start}:\n{self.costs}\n"
+        return t
+
+        
+
+
 
 if __name__ == "__main__":
-    
-    # Get user input
+    nodes,links = get_file_data(fileinput.input())
     start_node = input("Please, provide the source node: ")
+    Dj = Dijkstras(nodes,links,start_node)
+    print(Dj)
 
-    # Get file input
-    links = {}
-    for line in fileinput.input():
-        node = line.rstrip("\n").split(",")
-        if(node[0]==''):
-            links.update({"ends":node[1:]})
-            nodes = node[1:]
-        else:
-            links.update({node[0]:{links["ends"][i]:{"val":int(node[i+1]),"prev":""} for i in range(len(links["ends"]))}})
-    #  Dijkstra’s algorithm
-    tmp = links
-    graph = []
+    nodes,links = get_file_data(fileinput.input())
+    Dv = Distace_Vector(nodes,links)
+    Dv.bellman_ford()
+    print(Dv)
+  
     
     
-    for node in list(tmp.keys())[1:]:
-        for elem in tmp[node].keys():
-            if tmp[node][elem]['val'] != 0:
-                graph.append([node, elem, tmp[node][elem]['val']])
-    shortest_paths = dijkstras_algorithm(links,start_node)
-    get_trees(shortest_paths) # Get the path-trees
-    trees = ', '.join([shortest_paths[i]["tree"] for i in shortest_paths])
-    print(f"Shortest path tree for node {start_node}:\n{trees}")
-    costs = ', '.join(["{}:{}".format(i,shortest_paths[i]["val"]) for i in shortest_paths])
-    print(f"Costs of the least-cost paths for node {start_node}:\n{costs}")
 
-    # Bellman-Ford equation
-    for n in nodes:
-        bellman_ford(len(nodes), graph, n, nodes)
     
     
