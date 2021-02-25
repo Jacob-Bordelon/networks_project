@@ -1,153 +1,140 @@
 import fileinput
-from typing import Type
+
+NODES = []
+LINKS = {}
+# --------------- Stuff for DIJKSTRA’S ALGORITHM ------------------
+# Recursevly find the tree
+def recur(p,source,i):
+    if i == source:
+        return source
+    return recur(p,source,p[i])+i
+
+# get the trees from the previos
+def format_tree(p,source):
+    T = {}
+    for i in p:
+        T[i]=recur(p,source,i)
+    return T
 
 
-def get_file_data(input):
-    links = {}
-    for line in input:
-        line = line.rstrip("\n").split(",")
-        if(line[0]==''):
-            nodes = line[1:]
+def dijstraks_algorithm(nodes:list, links:dict, source:str):
+    # Initialzation
+    index = lambda u: nodes.index(u)
+    getmin = lambda D : min([i for i in D.items() if i[0] not in N],key=lambda x: x[1])[0]
+
+    N=[source]
+    D={}
+    p={}
+    for i in links:
+        if links[source][index(i)] != 9999:
+            D[i] = cost(source,i)
+            p[i] = source
         else:
-            temp = {nodes[i]:int(line[1:][i]) for i in range(len(nodes))}
-            links.update({line[0]:temp})
-    return nodes,links
+            D[i] = 9999
+    p[source]=""
+    
+    # Repeat until all nodes are in N
+    while len(N) != len(nodes):
+        # find w not in N such that D(w) is a minimum
+        w = getmin(D)
+
+        # add w to N
+        N.append(w)
+
+        # update D(v) for all v adjacent to w and not in N
+        for v in links:
+            if v not in N:
+                if (D[w]+cost(w,v)) < D[v]:
+                    D[v] = (D[w]+cost(w,v))
+                    p[v] = w
+    
+    # format shortest path trees
+    P = format_tree(p,source)
+
+    return D,P
+
+# --------------- Stuff for DISTANCE-VECTOR ALGORITHM ------------------
 
 
 
 
-class Distace_Vector(object):
-    class Node:
-        def __init__(self,name,vertices) -> None:
-            self.name = name
-            self.verts = vertices
+class Node(object):
+    # set neighbors so the nodes can communicate
+    destinations = {}
 
-        def check(self,Dv,c):
-            for i in self.verts:
-                if( Dv[i]+c < self.verts[i]):
-                    self.verts[i]=Dv[i]+c
+    # initialize the node
+    def __init__(self,name) -> None:
+        self.name = name
+        self.Dx = self.Cx = {i:cost(name,i) for i in NODES}
+        self.Dv = {i:{a:9999 for a in NODES} for i in NODES}
+        self.Dv[self.name] = self.Dx
+        self.neighbors = [i for i in self.Dx if i != name and self.Cx[i] != 9999]
 
-        def __getitem__(self,other):
-            return self.verts[other]
+        Node.destinations.update({name:self})
+        self.sendout()
 
-        def __iter__(self):
-            return self.verts.__iter__()
+    # When the Dv changes, perform the bellman ford algorithm
+    def setDv(self,w,val):
+        self.Dv[w] = val
+        self.bellman(w)
 
-        def __setitem__(self,key,value):
-            self.verts[key] = value
+    # send distance vector to each neighbor(w)
+    def sendout(self):     
+        for w in self.neighbors:
+            if w in Node.destinations:
+                V = Node.destinations[w]
+                # Get the neighbors distance vector
+                self.setDv(V.name,V.Dx)
+                # Send out your own distance vector
+                V.setDv(self.name,self.Dx)
+    
+    # Bellman ford algorithm
+    def bellman(self,v):
+        for y in self.Dx:
+            if (self.Cx[v] + self.Dv[v][y]) < self.Dx[y]:
+                self.Dx[y] = (self.Cx[v] + self.Dv[v][y])
+                self.sendout()
 
-        def __add__(self,value):
-            return {i:self.verts[i]+value for i in self.verts}
-
-        def __repr__(self) -> str:
-            return repr(self.verts)
-
-    def __init__(self,nodes,links) -> None:
-        self.nodes = nodes
-        self.graph = {i:self.Node(i,links[i]) for i in nodes}
-        
-
-    def bellman_ford(self):
-        for _ in range(len(self.nodes)-1):
-            for u in self.nodes:
-                for v in self.nodes:
-                    self.graph[u].check(self.graph[v],self.cost(u,v))
-
-    def cost(self,u,v):
-        return self.graph[u][v]
-
-    def __getitem__(self,other):
-        return self.graph[other]
-
-    def __setitem__(self,key,value):
-        self.graph[key] = value
-
+    # Display as an output
     def __str__(self) -> str:
-        table=""
-        for i in self.graph:
-            values = ' '.join([str(self.graph[i][a]) for a in self.graph[i]])
-            table+=f"Distance vector for node {i}: {values}\n"
-        return table
+        return ', '.join([str(self.Dx[i]) for i in self.Dx])
 
 
-class Dijkstras:
-
-    class Node:
-        def __init__(self,val) -> None:
-            self.val = val
-            self.prev = ""
-            self.tree = ""
-        
-        def __repr__(self) -> str:
-            return repr({'val':self.val,'prev':''})
-
-    def __init__(self,nodes,links,start_node) -> None:
-        self.unvisited = nodes
-        self.start = start_node
-        self.links = links
-        self.distances = {i:self.Node(9999) for i in nodes}
-        self.distances[self.start].val = 0
-        self.algorithm()
-        self.tree = ""
-        self.costs = ', '.join(["{}:{}".format(i,self.distances[i].val) for i in self.distances])
-
-
-    @property
-    def tree(self):
-        return self._tree
-
-    @tree.setter
-    def tree(self,_):
-        for i in self.distances:
-            tree=current=i
-            while(self.distances[current].prev != ''):
-                current = self.distances[current].prev
-                tree+=current            
-            self.distances[i].tree = tree[::-1]
-        self._tree = ', '.join([self.distances[i].tree for i in self.distances])
-
-    def min(self):
-        MIN=9999
-        Letter = None 
-        for i in self.distances:
-            if( (i in self.unvisited) and (self.distances[i].val < MIN)):
-                MIN = self.distances[i].val
-                Letter = i
-        return Letter,MIN
-
-    def algorithm(self):
-        while(self.unvisited != []):
-            current, weight = self.min()
-            for neighbor in self.links[current]:
-                if neighbor in self.unvisited:
-                    new_dist =self.links[current][neighbor]+weight
-                    if(new_dist < self.distances[neighbor].val):
-                        self.distances[neighbor].val = new_dist
-                        self.distances[neighbor].prev = current
-            self.unvisited.remove(current)
-        
-    def __str__(self) -> str:
-        t = f"Shortest path tree for node {self.start}:\n{self.tree}\n"
-        t+= f"Costs of the least-cost paths for node {self.start}:\n{self.costs}\n"
-        return t
-
-        
-
-
+def distance_vector():
+    return {i:Node(i) for i in NODES}
+    
+# --------------- Main  ------------------
 
 if __name__ == "__main__":
-    nodes,links = get_file_data(fileinput.input())
-    start_node = input("Please, provide the source node: ")
-    Dj = Dijkstras(nodes,links,start_node)
-    print(Dj)
+    # get source 
+    source = input("Please, provide the source node: ")
+    # get information from .csv file
+    data = fileinput.input()
+    # format data to a graph format
+    nodes = data.readline().rstrip("\n").split(",")[1:]
+    links = [i.rstrip("\n").split(",") for i in data]
+    links = {i[0]:[int(a) for a in i[1:]] for i in links}
 
-    nodes,links = get_file_data(fileinput.input())
-    Dv = Distace_Vector(nodes,links)
-    Dv.bellman_ford()
-    print(Dv)
-  
-    
-    
+    NODES = nodes 
+    LINKS = links
 
+    cost = lambda u,v: links[u][nodes.index(v)]
     
+    # dijstraks algorithm - Jacob
     
+    result = dijstraks_algorithm(nodes,links,source)
+    costs = ', '.join([f"{i}:"+str(result[0][i]) for i in result[0]])
+    result[1].pop(source)
+    tree = sorted([result[1][i] for i in result[1]],key=len)
+    tree = ', '.join(tree)
+    print(f"Shortest path tree for node {source}:\n{tree}")
+    print(f"Costs of the least-cost paths for node {source}:\n{costs}\n")
+ 
+
+    # distance vector algorithm - JonMichael
+    result = distance_vector()
+    for i in result:
+        print(f"Distance vector for node {i}: {result[i]}")
+
+
+
